@@ -1,0 +1,17 @@
+background no
+out_to_console yes
+out_to_x no
+update_interval 0.5
+total_run_times 0
+use_spacer left 
+text_buffer_size 50000
+max_user_text 50000
+pad_percents 2 
+   
+TEXT
+^ib(1)^fg(white)^i(/home/tsemczyszyn/icons/cpu.xbm) ^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_left.xbm)^r(200x12)^p(-200)^fg()${cpu cpu1} ${cpu cpu2} ${cpu cpu3} ${cpu cpu4}^fg(\#0f0f0f)^r(200x12)^p(-200)^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_right.xbm) #
+^fg(\#595959)^i(/home/tsemczyszyn/icons/ethernet.xpm) ^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_left.xbm)^r(100x12)^p(-100)^fg()${downspeed enp3s0}^fg(\#0f0f0f)^r(100x12)^p(-100)^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_right.xbm)^fg(white)^i(/home/tsemczyszyn/icons/down.xbm) #
+^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_left.xbm)^r(100x12)^p(-100)^fg()${upspeed enp3s0}^fg(\#0f0f0f)^r(100x12)^p(-100)^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_right.xbm)^fg(white)^i(/home/tsemczyszyn/icons/up.xbm)#
+^fg()^i(/home/tsemczyszyn/icons/drive-harddisk.xpm) ^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_left.xbm)^r(100x12)^p(-100)^fg()${diskio /dev/sdb}^fg(\#0f0f0f)^r(100x12)^p(-100)^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_right.xbm) #
+^fg(white)^i(/home/tsemczyszyn/icons/mem.xbm) ^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_left.xbm)^r(100x12)^p(-100)^fg()${mem}^fg(\#0f0f0f)^r(100x12)^p(-100)^fg(\#595959)^i(/home/tsemczyszyn/icons/corner_right.xbm) #
+^fg(orange)${time %a %b %d %I:%M%P}

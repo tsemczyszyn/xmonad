@@ -1,0 +1,1 @@
+trayer --SetDockType true --SetPartialStrut true --transparent true --alpha 0 --tint 0x0f0f0f --height 13 --edge bottom --align right --width 1920 --widthtype pixels &
