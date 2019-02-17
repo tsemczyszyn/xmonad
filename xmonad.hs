@@ -3,8 +3,8 @@ import XMonad
 import XMonad.Hooks.DynamicLog
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.UrgencyHook
-import XMonad.Hooks.SetWMName
-import XMonad.Hooks.FadeInactive
+import XMonad.Hooks.ManageHelpers
+import XMonad.Hooks.EwmhDesktops
 
 import XMonad.Util.Run(spawnPipe)
 import XMonad.Util.EZConfig(additionalKeys)
@@ -20,8 +20,6 @@ import XMonad.Actions.SpawnOn
 import XMonad.Actions.UpdatePointer
 import XMonad.Actions.WindowGo
 import XMonad.Actions.Commands
-import XMonad.Actions.PhysicalScreens
-import XMonad.Actions.UpdatePointer
 
 import XMonad.Layout.NoBorders
 import XMonad.Layout.Grid
@@ -29,9 +27,10 @@ import XMonad.Layout.PerWorkspace
 import XMonad.Layout.Tabbed
 import XMonad.Layout.Mosaic
 import XMonad.Layout.IM
-import XMonad.Layout.Gaps
+import XMonad.Layout.Fullscreen
 
 import XMonad.Prompt
+import XMonad.Prompt.Pass
 import XMonad.Prompt.Workspace
 
 import System.IO
@@ -47,36 +46,35 @@ import qualified XMonad.StackSet as W
 --Basic Config
 ------------------------------------------------
 
---myTerminal      = "urxvtc"
 myTerminal      = "termite"
-myShell			= "zsh"
+myShell			= "fish"
 myModMask       = mod4Mask
 
 myFocusFollowsMouse :: Bool
 myFocusFollowsMouse = True
 
-myBorderWidth   = 3 
+myBorderWidth   = 3
 myNormalBorderColor  = "#000000"
 myFocusedBorderColor = "#0099ff"
 
 myIconDir = "/home/tsemczyszyn/icons"
-myFont = "-*-terminus-medium-*-normal-*-14-*-*-*-*-*-*-*"
+myFont = "Envy Code R"
 
-myDzenFGColor = "#c6a57b"
-myDzenBGColor = "#181512"
+myDzenFGColor = "#555555"
+myDzenBGColor = "#222222"
 myVisibleBGColor = "#424242"
 myHiddenBGColor = "#3d3d3d"
 myNormalFGColor = "#ffffff"
 myNormalBGColor = "#0f0f0f"
-myFocusedFGColor = "#b5b5b5"
-myFocusedBGColor = "#787878"
+myFocusedFGColor = "#c2c2c2"
+myFocusedBGColor = "#424242"
 myUrgentFGColor = "#0099ff"
 myUrgentBGColor = "#0077ff"
 myIconFGColor = "#777777"
 myIconBGColor = "#0f0f0f"
 myPatternColor = "#1f1f1f"
 
-myXPConfig = defaultXPConfig
+myXPConfig = greenXPConfig { font = "xft:Envy Code R:pixelsize=15:autohint=true" }
 
 ------------------------------------------------
 --Key Bindings
@@ -91,8 +89,8 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     -- launch dmenu
     , ((modm,               xK_p     ), spawn "dmenu_run")
 
-    -- launch gmrun
-    , ((modm .|. shiftMask, xK_p     ), spawn "gmrun")
+    -- launch password manager
+    , ((modm .|. shiftMask, xK_p     ), passPrompt myXPConfig)
 
     -- close focused window
     , ((modm .|. shiftMask, xK_c     ), kill)
@@ -142,7 +140,7 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     -- Deincrement the number of windows in the master area
     , ((modm              , xK_period), sendMessage (IncMasterN (-1)))
     -- Lock screen
-    , ((modm .|. shiftMask  , xK_z  ), spawn "xscreensaver-command -lock")
+    , ((modm .|. shiftMask  , xK_z  ), spawn "slock")
 
     -- Toggle the status bar gap
     -- Use this binding with avoidStruts from Hooks.ManageDocks.
@@ -152,11 +150,10 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
 
     -- Quit xmonad
     , ((modm .|. shiftMask, xK_q     ), io (exitWith ExitSuccess))
-    , ((0				  , 0X1008FF2F     ), io (exitWith ExitSuccess))
 	, ((modm, xK_g), goToSelected defaultGSConfig)
 
     -- Restart xmonad
-    , ((modm              , xK_q     ), spawn "killall conky dzen2 && xmonad --recompile; xmonad --restart")
+    , ((modm              , xK_q     ), spawn "killall conky dzen2 && killall trayer && xmonad --recompile; xmonad --restart")
 	-- Screenshots
 	, ((0, xK_Print), spawn "scrot")
 	, ((modm              , xK_n     ), spawnShell) -- %! Launch terminal
@@ -181,11 +178,9 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     -- mod-{w,e,r}, Switch to physical/Xinerama screens 1, 2, or 3
     -- mod-shift-{w,e,r}, Move client to screen 1, 2, or 3
     --
-	[((modm .|. mask, key), f sc)
-		| (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
-		, (f, mask) <- [(viewScreen, 0), (sendToScreen, shiftMask)]]
-
-
+    [((m .|. modm, key), screenWorkspace sc >>= flip whenJust (windows . f))
+        | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
+        , (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
 
 ------------------------------------------------
 --Additional Functions
@@ -211,56 +206,48 @@ promptedShift = workspacePrompt myXPConfig $ windows . W.shift
 
 myTopics =
 	[ "main"
-	, "code"
+	, "games"
 	, "im"
+	, "sandbox"
 	, "irc"
 	, "monitoring"
-	, "sandbox"
 	, "email"
+	, "music"
 	, "virtual"
-	, "wireshark"
 	, "office"
-	, "rdesktop"
-	, "space"
-	, "astronomy"
+	, "bitcoin"
+	, "code"
 	, "void"
 	]
 
 myTopicConfig = defaultTopicConfig
 	{ topicDirs = M.fromList $
 		[ ("main", "~/")
-		, ("code", "~/sources")
+		, ("games", "~/")
 		, ("im", "~/")
+		, ("sandbox", "~/")
 		, ("irc", "~/")
 		, ("monitoring", "~/")
-		, ("sandbox", "~/")
 		, ("email", "~/")
+		, ("music", "~/")
 		, ("virtual", "~/")
-		, ("wireshark", "~/")
-		, ("office", "~/")
-		, ("rdesktop", "~/")
-		, ("space", "~/")
-		, ("astronomy", "~/")
+		, ("office", "~/Documents")
 		, ("void", "~/")
+		, ("bitcoin", "~/")
+		, ("code", "~/sources")
 		]
-	, defaultTopicAction = const $ spawnShell >*> 1
+	, defaultTopicAction = const $ spawnShell >*> 1 
 	, defaultTopic = "dashboard"
-	, maxTopicHistory = 9
+	, maxTopicHistory = 9 
 	, topicActions = M.fromList $
-		[ ("main", spawnHere "google-chrome-beta")
-		, ("im", (spawnHere "skype"))
-		, ("wireshark", (spawnHere "wireshark" ))
-		, ("irc", spawnHere "termite -e irssi")
-		, ("monitoring", spawnHere "urxvtc - xterm-color -e htop")
-		, ("email", spawnHere "termite -e ~/sources/scripts/slow_down_mutt.sh -t mutt")
+		[ ("main", spawnHere "firefox")
+		, ("games", spawnHere "steam")
+		, ("music", spawnHere "spotify")
+		, ("monitoring", spawnHere "termite -e htop")
+		, ("bitcoin", spawnHere "bitcoin-qt" >> spawnHere "litecoin-qt")
 		, ("office", spawnHere "libreoffice")
-		, ("space", spawnHere "gpredict")
-		, ("astronomy", spawnHere "stellarium")
-		, ("virtual", spawnHere "VirtualBox")
 		]
 	}
-
-
 
 ------------------------------------------------
 --Mouse Bindings
@@ -286,21 +273,21 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
 --Logging
 ------------------------------------------------
 
---myLogHook h = dynamicLogWithPP $ defaultPP { ppOutput = hPutStrLn h}
+myLogHook h = dynamicLogWithPP $ defaultPP { ppOutput = hPutStrLn h}
 
 ------------------------------------------------
 --Status Bar Stuff
 ------------------------------------------------
 --
-myDzenBar = "dzen2  -ta 'l' -x '0' -w '1000' -y '0' -h '23' -fn " ++ myFont ++ " -fg '" ++ myNormalFGColor ++ "' -bg '" ++ myNormalBGColor ++ "'"
-myRightBar = "conky | dzen2 -ta r -x '1000' -w '920' -y '0' -h '23' -fn " ++ myFont ++ " -bg '" ++ myNormalBGColor ++ "'"
+myDzenBar = "dzen2 -dock -e 'button2=;' -ta 'l' -x '0' -w '1000' -y '0' -h '15' -fn '" ++ myFont ++ ":size=10' -fg '" ++ myNormalFGColor ++ "' -bg '" ++ myNormalBGColor ++ "'" 
+myRightBar = "conky | dzen2 -dock -e 'button2=;' -ta r -x '1000' -w '920' -y '0' -h '15' -fn '" ++ myFont ++ ":size=10' -bg '" ++ myNormalBGColor ++ "'"
 
 ------------------------------------------------
 --Dzen PP
 ------------------------------------------------
 
 myDzenPP h = defaultPP
-	{ ppCurrent = wrap ("^fg(" ++ myFocusedFGColor ++ ")^bg(" ++ myFocusedBGColor ++ ")^p()") "^fg()^bg()^p()"
+	{ ppCurrent = wrap ("^fg(" ++ myFocusedFGColor ++ ")^bg(" ++ myFocusedBGColor ++ ")^p()") "^fg()^bg()^p()"  
 	, ppVisible = wrap ("^fg(" ++ myDzenFGColor ++ ")^bg(" ++ myDzenBGColor ++ ")^p()") "^fg()^bg()^p()"
 	, ppUrgent = wrap ("^fg(" ++ myUrgentFGColor ++ ")^bg(" ++ myDzenBGColor ++ ")^p()") "^fg()^bg()^p()"
 	, ppSep = " "
@@ -309,13 +296,13 @@ myDzenPP h = defaultPP
 	}
 
 myDzenPP_ h = defaultPP
-	{ ppCurrent = wrap ("^ib(1)^fg(" ++ myFocusedBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myFocusedFGColor ++ ")") ("^fg(" ++ myFocusedBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId
-	, ppVisible = wrap ("^ib(1)^fg(" ++ myVisibleBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myNormalFGColor ++ ")") ("^fg(" ++ myVisibleBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId
-	, ppHidden = wrap ("^ib(1)^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myDzenFGColor ++ ")") ("^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId
-	, ppUrgent = wrap ("^ib(1)^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myUrgentFGColor ++ ")") ("^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId
+	{ ppCurrent = wrap ("^ib(1)^fg(" ++ myFocusedBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myFocusedFGColor ++ ")") ("^fg(" ++ myFocusedBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId 
+	, ppVisible = wrap ("^ib(1)^fg(" ++ myVisibleBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myNormalFGColor ++ ")") ("^fg(" ++ myVisibleBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myDzenBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId 
+	, ppHidden = wrap ("^ib(1)^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myDzenFGColor ++ ")") ("^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId 
+	, ppUrgent = wrap ("^ib(1)^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_left.xbm)^r(100x12)^p(-100)^fg(" ++ myUrgentFGColor ++ ")") ("^fg(" ++ myDzenBGColor ++ ")^i(" ++ myIconDir ++ "/corner_right.xbm)^fg(" ++ myNormalBGColor ++ ")^r(100x12)^p(-100)^ib(0)^fg()^bg()^p()") . \wsId -> dropIx wsId 
 	, ppSep = " >> "
 	, ppWsSep = " "
-	, ppSort = mkWsSort $ getXineramaPhysicalWsCompare
+	, ppSort = mkWsSort $ getXineramaWsCompare 
 	, ppOutput= hPutStrLn h
 	}
 	where
@@ -325,12 +312,12 @@ myDzenPP_ h = defaultPP
 --Layout
 ------------------------------------------------
 
-myLayout =
+myLayout = 
 	smartBorders $ 
 	avoidStruts $ 
 	onWorkspace "virtual" (Grid ||| all) $
-    onWorkspace "tickets" (Mirror $ Tall 1 0.03 0.90) $
 	onWorkspace "im" (gridIM (1%7) (Title "Hangouts")) $
+	onWorkspace "games" (fullscreenFull Full) $
 	all
 		where
 		all = layoutHook defaultConfig
@@ -344,27 +331,26 @@ myManageHook = composeAll
     , className =? "Gimp"           --> doFloat
     , className =? "XBoard"         --> doFloat
     , className =? "Steam"          --> doFloat
-    , className =? "Kerbal Space Program"          --> doFloat
+    , className =? "XTerm"          --> doFloat
+    , className =? "Steam"          --> doFullFloat
     , className =? "Skype"          --> doF (W.shift "im")
-    , className =? "Hangouts"       --> doF (W.shift "im")
-    , className =? "Pidgin"         --> doF (W.shift "im")
     , resource  =? "desktop_window" --> doIgnore
-    , resource  =? "kdesktop"       --> doIgnore
-    , stringProperty "WM_WINDOW_ROLE" =? "pop-up"          --> doF (W.shift "im")]
+    , resource  =? "kdesktop"       --> doIgnore]
+    --, stringProperty "WM_WINDOW_ROLE" =? "pop-up"          --> doF (W.shift "im")]
 
 ------------------------------------------------
 --Ugency Hook
 ------------------------------------------------
 --
 myUrgencyHook = withUrgencyHook dzenUrgencyHook
-    { args = ["-x", "650", "-y", "1064", "-h", "16", "-w", "1020", "-ta", "r", "-p", "10", "-fg", "" ++ myUrgentFGColor ++ "", "-bg", "" ++ myNormalBGColor ++ "", "-fn"] }
+    { args = ["-x", "650", "-y", "1064", "-h", "16", "-w", "1020", "-ta", "r", "-p", "10", "-fg", "" ++ myUrgentFGColor ++ "", "-bg", "" ++ myNormalBGColor ++ "", "-fn", "" ++ myFont ++ ""] }
 
 ------------------------------------------------
 --MISC
 ------------------------------------------------
---This shit is totally broken due to dzen struts bug related to desktops
---that are not of rectangular shape.
---myWeatherBar = "tail -f /home/tsemczyszyn/.cache/metar/metar | dzen2  -xs -ta 'l' -x '0' -w '1920' -y '1064' -h '16' -fn '" ++ myFont ++ "' -fg '" ++ myNormalFGColor ++ "' -bg '" ++ myNormalBGColor ++ "'"
+
+myWeatherBar = "tail -f /home/tsemczyszyn/.cache/metar/metar | dzen2 -e 'button2=;' -ta 'l' -x '0' -w '650' -y '1064' -h '16' -fn '" ++ myFont ++ "' -fg '" ++ myNormalFGColor ++ "' -bg '" ++ myNormalBGColor ++ "'" 
+trayer = "trayer --SetPartialStrut true --alpha 0 --tint 0x000000 --transparent true --height 15"
 
 ------------------------------------------------
 --Main
@@ -373,18 +359,19 @@ myUrgencyHook = withUrgencyHook dzenUrgencyHook
 main = do
 	dzenBar <- spawnPipe myDzenBar	
 	rightBar <- spawn myRightBar
-	--weather <- spawn myWeatherBar
+	weather <- spawn myWeatherBar
+	trayer <- spawn trayer
 	checkTopicConfig myTopics myTopicConfig
-	xmonad $ myUrgencyHook $ defaultConfig
+	xmonad $ myUrgencyHook $ docks $ ewmh defaultConfig
 		{ manageHook     = manageDocks <+> myManageHook <+> manageHook defaultConfig
 		, layoutHook     = myLayout
-		, logHook        = (dynamicLogWithPP $ myDzenPP_ dzenBar) >> updatePointer (Relative 0.5 0.5)>> fadeInactiveLogHook 0.8
+		, logHook        = dynamicLogWithPP $ myDzenPP_ dzenBar 
 		, keys           = myKeys
 		, mouseBindings  = myMouseBindings
 		, workspaces	 = myTopics
 		, modMask    	 = myModMask
 		, normalBorderColor = myNormalBorderColor
-		, startupHook = setWMName "LG3D"
+		, borderWidth    = myBorderWidth
 		, focusedBorderColor = myFocusedBorderColor
-		, borderWidth = myBorderWidth
+		, handleEventHook = XMonad.Hooks.EwmhDesktops.fullscreenEventHook 
 		}
